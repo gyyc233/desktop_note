@@ -98,7 +98,7 @@ void app.whenReady().then(() => {
   }
   createWindow()
   const tasks = taskStore()
-  const taskRoot = join(app.isPackaged ? dirname(process.execPath) : app.getAppPath(), 'tasks')
+  const taskRoot = join(app.isPackaged ? (process.env.PORTABLE_EXECUTABLE_DIR || dirname(process.execPath)) : app.getAppPath(), 'tasks')
   ipcMain.handle('task:create', async (event, name) => {
     const owner = BrowserWindow.fromWebContents(event.sender)
     if (!owner) throw new Error('窗口不可用')

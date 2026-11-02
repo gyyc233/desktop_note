@@ -1,0 +1,26 @@
+appId: io.github.gyyc233.desktopnote
+electronDist: node_modules/electron/dist
+productName: desktop-note
+directories:
+  output: dist
+files:
+  - out/**/*
+  - package.json
+asarUnpack:
+  - node_modules/better-sqlite3-multiple-ciphers/**/*
+npmRebuild: false
+win:
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  artifactName: desktop-note-${version}-${arch}-setup.${ext}
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: 每日记事
+portable:
+  artifactName: desktop-note-${version}-${arch}-portable.${ext}

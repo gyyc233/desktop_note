@@ -105,7 +105,7 @@ npm.cmd run rebuild
 | `npm run rebuild` | 为当前 Electron 重建数据库原生模块 |
 | `npm test` | 构建后运行界面冒烟测试及主进程生命周期测试 |
 
-`build` 目前只生成应用代码，**不会生成安装包或可独立分发的 exe**。仓库尚未配置安装包制作、签名或自动更新。
+`build` 仅生成应用代码。使用 `npm run package:win` 制作 Windows x64 NSIS 安装包与便携版，输出到 `dist/`；`npm run package:dir` 生成未封装程序目录，便于调试。安装包配置见 `electron-builder.yml`。当前产物未进行代码签名，尚未实现自动更新。
 
 ## 使用说明
 
@@ -203,7 +203,7 @@ electron.vite.config.ts   三个进程的构建配置
 - 每日笔记和普通只读文档尚不支持附件导入。Task 模式支持图片预览及材料归档；任务附件链接可在文件管理器中定位，外部网络链接暂不直接跳转。
 - 窗口置顶、透明度和便签状态目前不跨启动保存。
 - 飞书双向同步处于方案讨论阶段，尚未实现，也不需要配置飞书密钥。
-- 未实现笔记删除/回收站、密码备份恢复、安装包、自动更新和跨平台发布验证。
+- 未实现笔记删除/回收站、密码备份恢复、自动更新和跨平台发布验证。
 - 仓库尚未声明开源许可证；使用或分发前需与维护者确认授权，并检查第三方依赖许可。
 
 ## 本地 Task 任务资料
@@ -232,3 +232,31 @@ electron.vite.config.ts   三个进程的构建配置
 - 粘贴能否获得文件取决于来源软件是否向系统剪贴板提供文件数据；只提供文字路径时，可改用拖入或“添加材料”。
 
 实现入口：`src/main/tasks.ts`、`src/renderer/src/TaskWorkspace.tsx`。任务由主进程分配会话 ID，资源读取限制在已打开的任务目录内。
+
+## CI / CD
+
+GitHub Actions 配置位于 `.github/workflows/`：
+
+- `ci.yml`：推送到 `main`、创建或更新 PR、手动运行时，在 Windows 上安装依赖并执行 `npm test`，上传测试截图和日志。
+- `release.yml`：推送 `v*` 标签时先执行完整测试，再构建 Windows x64 安装版和便携版，计算 SHA256 校验值，上传 Actions 构建产物并创建 GitHub Release 草稿。检查附件后在 GitHub 发布草稿。
+- 手动运行 Release workflow 只构建、上传 Actions 产物，不创建版本发布。
+- 普通 CI 使用只读仓库权限；只有创建 Release 的独立任务获得 `contents: write`。无需另外配置个人访问令牌。
+- 当前只验证 Windows；不将未验证的 macOS/Linux 安装包作为发布产物。
+
+发布示例（版本号必须与标签一致）：
+
+```powershell
+npm version 0.1.1 --no-git-tag-version
+# 提交 package.json、package-lock.json 和本次版本修改
+# 确认提交已经推送至 main 后，再创建并推送对应标签：
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+产物包括 `desktop-note-<版本>-x64-setup.exe`、`desktop-note-<版本>-x64-portable.exe` 和 `SHA256SUMS.txt`。安装包不包含 `tasks/`、历史图标设计稿、测试数据或本地笔记数据库。便携版的 task 默认位于便携 exe 旁的 `tasks/`，可将两者一起打包；加密每日笔记数据库仍位于系统用户数据目录。
+
+## 开发协助与致谢
+
+本项目在作者主导下，借助 **OpenAI Codex** 协作开发。Codex 协助进行了技术方案梳理、界面与功能实现、问题修复、测试编写、README 文档以及 CI/CD 配置；图标探索和编辑使用了 OpenAI 图像生成工具。
+
+项目需求、设计取舍和最终采纳由作者决定。AI 协助生成的代码与资源仍需开发者审查、测试和维护；此说明不代表 OpenAI 对本项目提供官方背书。

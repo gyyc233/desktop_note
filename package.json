@@ -12,7 +12,9 @@
     "postinstall": "node node_modules/electron/install.js && electron-rebuild -f -w better-sqlite3-multiple-ciphers",
     "rebuild": "electron-rebuild -f -w better-sqlite3-multiple-ciphers",
     "test": "npm run build && node scripts/tasks.cjs && node scripts/run-smoke.cjs && node scripts/run-lifecycle.cjs && node scripts/run-lifecycle.cjs tasks",
-    "icons": "node scripts/generate-icons.cjs"
+    "icons": "node scripts/generate-icons.cjs",
+    "package:win": "npm run build && electron-builder --win --publish never",
+    "package:dir": "npm run build && electron-builder --win --dir --publish never"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.2",
@@ -38,6 +40,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "sharp": "^0.35.5",
     "typescript": "^7.0.2",
