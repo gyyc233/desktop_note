@@ -1,0 +1,32 @@
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+const { taskStore } = require('../src/main/tasks.ts')
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-note-tasks-'))
+try {
+  const tasks = taskStore()
+  const task = tasks.create(root, '项目资料')
+  for (const name of ['task.md', 'img', 'docs', 'audio', 'video', 'files']) assert.ok(fs.existsSync(path.join(task.root, name)))
+  assert.throws(() => tasks.create(root, '../outside'))
+  assert.throws(() => tasks.create(root, 'CON'))
+  assert.throws(() => tasks.create(root, '项目资料'))
+  tasks.save(task.id, '# 测试任务\n')
+  assert.equal(tasks.open(task.root).body, '# 测试任务\n')
+  for (const [name, dir] of [['截图.png', 'img'], ['合同.pdf', 'docs'], ['记录.txt', 'docs'], ['演示.mp4', 'video'], ['语音.mp3', 'audio'], ['资料.zip', 'files']]) {
+    const attachment = tasks.attach(task.id, name, new Uint8Array([1, 2, 3]))
+    assert.ok(attachment.path.startsWith(dir + '/'))
+    assert.deepEqual([...fs.readFileSync(path.join(task.root, attachment.path))], [1, 2, 3])
+    assert.notEqual(tasks.attach(task.id, name, new Uint8Array([4])).path, attachment.path)
+    if (dir === 'img') assert.ok(tasks.image(task.id, attachment.path).startsWith('data:image/png;base64,'))
+  }
+  assert.throws(() => tasks.image(task.id, '../outside.png'))
+  assert.throws(() => tasks.image(task.id, 'https://example.com/image.png'))
+  fs.writeFileSync(path.join(task.root, 'task.md'), '外部修改')
+  assert.throws(() => tasks.save(task.id, '不可覆盖'))
+  assert.equal(fs.readFileSync(path.join(task.root, 'task.md'), 'utf8'), '外部修改')
+  console.log('PASS: task directories, reopen, save, collision protection, type routing, unique attachments, image scope, external edit conflict')
+} finally {
+  if (path.dirname(root) !== path.resolve(os.tmpdir()) || !path.basename(root).startsWith('desktop-note-tasks-')) throw new Error('Invalid test directory')
+  fs.rmSync(root, { recursive: true, force: true })
+}

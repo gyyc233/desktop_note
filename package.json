@@ -1,0 +1,46 @@
+{
+  "name": "desktop-note",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first daily desktop notes",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && electron-vite build",
+    "preview": "electron-vite preview",
+    "postinstall": "node node_modules/electron/install.js && electron-rebuild -f -w better-sqlite3-multiple-ciphers",
+    "rebuild": "electron-rebuild -f -w better-sqlite3-multiple-ciphers",
+    "test": "npm run build && node scripts/tasks.cjs && node scripts/run-smoke.cjs && node scripts/run-lifecycle.cjs && node scripts/run-lifecycle.cjs tasks",
+    "icons": "node scripts/generate-icons.cjs"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/view": "^6.43.15",
+    "@uiw/react-codemirror": "^4.25.12",
+    "better-sqlite3-multiple-ciphers": "^13.0.3",
+    "katex": "^0.19.1",
+    "lucide-react": "^1.65.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.1",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/katex": "^0.16.8",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^45.1.0",
+    "electron-vite": "^6.0.0",
+    "sharp": "^0.35.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}
