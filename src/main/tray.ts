@@ -22,6 +22,10 @@ export function attachTray(window: BrowserWindow) {
   ])
   tray.setContextMenu(menu)
   tray.on('double-click', show)
+  window.on('minimize', () => {
+    window.webContents.send('notes:before-hide')
+    window.hide()
+  })
   window.on('close', event => {
     if (exiting) return
     event.preventDefault()

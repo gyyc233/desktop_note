@@ -25,6 +25,10 @@ export function openStore(path: string, key: string) {
     }
   } catch (error) { db.close(); throw error }
   return {
+    remove(date: string) {
+      if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Invalid date')
+      return db.prepare('DELETE FROM notes WHERE date = ?').run(date).changes > 0
+    },
     list: () => (db.prepare('SELECT date, body, updatedAt, bookmarked, category FROM notes ORDER BY date DESC').all() as (Omit<Note, 'bookmarked'> & { bookmarked: number })[]).map(note => ({ ...note, bookmarked: Boolean(note.bookmarked) })),
     save(date: string, body: string, bookmarked = false, category: Category = '工作'): Note {
       const parsed = new Date(`${date}T12:00:00Z`)

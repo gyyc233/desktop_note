@@ -83,6 +83,17 @@ void app.whenReady().then(() => {
     if (!existsSync(keyPath)) writeFileSync(keyPath, safeStorage.encryptString(randomBytes(32).toString('hex')), { flag: 'wx', mode: 0o600 })
     store = openStore(dbPath, safeStorage.decryptString(readFileSync(keyPath)))
     ipcMain.handle('notes:list', () => store.list())
+    ipcMain.handle('notes:delete', async (event, date) => {
+      const owner = BrowserWindow.fromWebContents(event.sender)
+      if (!owner || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('无效的笔记')
+      const result = await dialog.showMessageBox(owner, {
+        type: 'warning', title: '删除笔记', message: `确定删除 ${date} 的笔记吗？`,
+        detail: '正文、分类和书签会一起删除。此操作无法撤销。',
+        buttons: ['取消', '删除笔记'], defaultId: 0, cancelId: 0, noLink: true
+      })
+      if (result.response !== 1) return false
+      return store.remove(date)
+    })
     ipcMain.handle('notes:save', (_event, date, body, bookmarked, category) => store.save(date, body, bookmarked, category))
     ipcMain.handle('markdown:open', async event => {
       const owner = BrowserWindow.fromWebContents(event.sender)

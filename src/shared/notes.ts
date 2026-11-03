@@ -1,6 +1,7 @@
 export type Category = '生活' | '学习' | '工作'
 export interface Note { date: string; body: string; updatedAt: string; bookmarked: boolean; category: Category }
 export interface NotesAPI {
+  deleteNote(date: string): Promise<boolean>
   createTask(name: string): Promise<TaskDocument | null>
   openTask(): Promise<TaskDocument | null>
   saveTask(id: string, body: string): Promise<void>
@@ -18,5 +19,5 @@ export interface NotesAPI {
   cancelClose(): void
   onBeforeHide(callback: () => void): () => void
 }
-export interface WindowSettings { compact: boolean; pinned: boolean; opacity: number }
+export interface WindowSettings { compact: boolean; pinned: boolean; opacity: number; dock: boolean }
 export interface TaskDocument { id: string; name: string; root: string; body: string }

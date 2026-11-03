@@ -1,4 +1,4 @@
-const { app, BrowserWindow, safeStorage } = require('electron')
+const { app, BrowserWindow, safeStorage, dialog, screen } = require('electron')
 const fs = require('node:fs')
 const path = require('node:path')
 const assert = require('node:assert/strict')
@@ -24,6 +24,20 @@ app.whenReady().then(async () => {
     await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.category-filters button')).find(b=>b.textContent.startsWith('生活')).click()`)
     await waitFor(() => window.webContents.executeJavaScript(`document.querySelectorAll('.day').length===1`))
     console.log('PASS: category assignment, autosave and filtering')
+    await window.webContents.executeJavaScript(`document.querySelector('.day').dispatchEvent(new MouseEvent('contextmenu', {bubbles:true,cancelable:true,clientX:100,clientY:250}))`)
+    await waitFor(() => window.webContents.executeJavaScript(`!!document.querySelector('.note-actions')`))
+    dialog.showMessageBox = async () => ({ response: 0, checkboxChecked: false })
+    await window.webContents.executeJavaScript(`document.querySelector('.delete-note').click()`)
+    await waitFor(() => window.webContents.executeJavaScript(`!document.querySelector('.note-actions')`))
+    assert.equal(await window.webContents.executeJavaScript(`window.notes.list().then(n=>n.length)`), 1)
+    await window.webContents.executeJavaScript(`document.querySelector('.day').dispatchEvent(new MouseEvent('contextmenu', {bubbles:true,cancelable:true,clientX:100,clientY:250}))`)
+    dialog.showMessageBox = async () => ({ response: 1, checkboxChecked: false })
+    await waitFor(() => window.webContents.executeJavaScript(`!!document.querySelector('.delete-note')`))
+    await window.webContents.executeJavaScript(`document.querySelector('.delete-note').click()`)
+    await waitFor(() => window.webContents.executeJavaScript(`window.notes.list().then(n=>n.length===0)`))
+    // Reset category filter after deleting its last record.
+    await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.category-filters button')).find(b=>b.textContent.startsWith('全部')).click()`)
+    console.log('PASS: right-click note menu, cancel deletion, confirmed database deletion')
     const originalBounds = window.getBounds()
     await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.desktop-controls button')).find(b => b.textContent === '便签模式').click()`)
     await waitFor(() => window.webContents.executeJavaScript(`!!document.querySelector('.app.compact')`))
@@ -37,6 +51,48 @@ app.whenReady().then(async () => {
     await waitFor(() => window.webContents.executeJavaScript(`!document.querySelector('.app.compact')`))
     assert.ok(Math.abs(window.getBounds().width - originalBounds.width) <= 2)
     console.log('PASS: compact window, restore bounds, always-on-top, opacity')
+    const area = screen.getDisplayMatching(window.getBounds()).workArea
+    const cursorReader = screen.getCursorScreenPoint
+    let fakeCursor = { x: area.x + area.width - 2, y: area.y + area.height - 2 }
+    screen.getCursorScreenPoint = () => fakeCursor
+    window.setBounds({ x: area.x, y: area.y + 30, width: 640, height: 480 })
+    await window.webContents.executeJavaScript(`window.notes.setWindow({dock:true})`)
+    await delay(2000)
+    assert.ok(window.getBounds().x >= area.x - 2, 'Normal mode must not tuck')
+    await window.webContents.executeJavaScript(`window.notes.setWindow({compact:true})`)
+    window.setBounds({x:area.x+24,y:area.y+60,width:360,height:420})
+    fakeCursor={x:area.x+100,y:area.y+100}
+    await waitFor(() => Math.abs(window.getBounds().x-area.x)<=2)
+    fakeCursor={x:area.x+area.width-2,y:area.y+area.height-2}
+    await waitFor(() => window.getBounds().x < area.x - 100)
+    fakeCursor = { x: area.x + 2, y: area.y + 60 }
+    await waitFor(() => Math.abs(window.getBounds().x - area.x) <= 2)
+    fakeCursor = { x: area.x + area.width - 2, y: area.y + area.height - 2 }
+    await waitFor(() => window.getBounds().x < area.x - 100)
+    await window.webContents.executeJavaScript(`window.notes.setWindow({dock:false})`)
+    assert.ok(Math.abs(window.getBounds().x - area.x) <= 2)
+    const stableWidth = window.getBounds().width
+    const stableHeight = window.getBounds().height
+    fakeCursor = { x: area.x + area.width - 2, y: area.y + 100 }
+    window.setPosition(area.x + area.width - stableWidth - 20, area.y + 60)
+    await window.webContents.executeJavaScript(`window.notes.setWindow({dock:true})`)
+    await waitFor(() => Math.abs(window.getBounds().x + window.getBounds().width - area.x - area.width) <= 2)
+    await delay(300)
+    let movements = 0
+    const countMoves = () => movements++
+    window.on('move', countMoves)
+    await delay(1500)
+    window.removeListener('move', countMoves)
+    assert.ok(movements <= 2, 'Right-edge snapping must settle instead of oscillating')
+    assert.ok(Math.abs(window.getBounds().width - stableWidth) <= 2, 'Dock animation must not repeatedly grow the window')
+    assert.ok(Math.abs(window.getBounds().height - stableHeight) <= 2)
+    await window.webContents.executeJavaScript(`window.notes.setWindow({dock:false})`)
+    console.log('PASS: right-edge stable position and unchanged dimensions')
+    screen.getCursorScreenPoint = cursorReader
+    await window.webContents.executeJavaScript(`window.notes.setWindow({compact:false})`)
+    window.setBounds(originalBounds)
+    console.log('PASS: edge tuck, cursor-edge restore and disable restore')
+
     await window.webContents.executeJavaScript(`document.querySelector('.template').click()`)
     await window.webContents.executeJavaScript(`document.querySelector('.calendar-trigger').click()`)
     await waitFor(() => window.webContents.executeJavaScript(`!!document.querySelector('.calendar-day .note-dot')`))

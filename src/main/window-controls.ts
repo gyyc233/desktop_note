@@ -1,12 +1,18 @@
 import type { BrowserWindow } from 'electron'
+import { edgeDock } from './edge-dock'
 export function windowControls(window: BrowserWindow) {
   let compact = false
+  const dock = edgeDock(window, () => compact)
   let bounds = window.getNormalBounds()
   let maximized = false
   return {
-    get: () => ({ compact, pinned: window.isAlwaysOnTop(), opacity: window.getOpacity() }),
-    set(value: { compact?: boolean; pinned?: boolean; opacity?: number }) {
+    get: () => ({ compact, pinned: window.isAlwaysOnTop(), opacity: window.getOpacity(), dock: dock.get() }),
+    set(value: { compact?: boolean; pinned?: boolean; opacity?: number; dock?: boolean }) {
       if (!value || typeof value !== 'object') throw new Error('Invalid window settings')
+      if (value.dock !== undefined) {
+        if (typeof value.dock !== 'boolean') throw new Error('Invalid dock state')
+        dock.set(value.dock)
+      }
       if (value.opacity !== undefined) {
         if (!Number.isFinite(value.opacity) || value.opacity < 0.35 || value.opacity > 1) throw new Error('Invalid opacity')
         window.setOpacity(value.opacity)
@@ -16,6 +22,7 @@ export function windowControls(window: BrowserWindow) {
         window.setAlwaysOnTop(value.pinned)
       }
       if (value.compact !== undefined && value.compact !== compact) {
+        dock.restore()
         if (typeof value.compact !== 'boolean') throw new Error('Invalid compact state')
         if (value.compact) {
           bounds = window.getNormalBounds(); maximized = window.isMaximized()
