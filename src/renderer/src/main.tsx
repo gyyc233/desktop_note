@@ -3,7 +3,7 @@ import brandIcon from '../../../resources/icon.png'
 import { NoteCalendar } from './NoteCalendar'
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import CodeMirror from '@uiw/react-codemirror'
+import CodeMirror from './StableCodeMirror'
 import { EditorView } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
 import { MarkdownView } from './MarkdownView'
@@ -24,12 +24,14 @@ const extensions = [
   EditorView.theme({
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#245b3e', borderLeftWidth: '2px' },
     '.cm-content': { caretColor: '#245b3e' },
-    '.cm-activeLine': { backgroundColor: '#eaf0e3' },
+    // Selection is painted behind the text lines. An opaque active-line fill hides it.
+    '.cm-activeLine': { backgroundColor: 'rgba(53, 94, 73, 0.06)' },
     '.cm-activeLineGutter': { backgroundColor: '#e0e9d7', color: '#355e49' },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': { backgroundColor: '#cbdcb9 !important' },
     '.cm-scroller': { scrollPadding: '24px' }
   })
 ]
+const editorSetup = { lineNumbers: true, foldGutter: false, highlightActiveLine: true, highlightActiveLineGutter: true, drawSelection: true }
 function App() {
   const [notes, setNotes] = useState<Record<string, Note>>({})
   const [date, setDate] = useState(localDate)
@@ -39,6 +41,7 @@ function App() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [mode, setMode] = useState<'split' | 'edit' | 'preview'>('split')
+  const [compactPreview, setCompactPreview] = useState(false)
   const [closing, setClosing] = useState(false)
   const [onlyBookmarks, setOnlyBookmarks] = useState(false)
   const [sidebarHidden, setSidebarHidden] = useState(false)
@@ -201,12 +204,13 @@ function App() {
   }
   const days = [...new Set([localDate(), date, ...Object.keys(notes)])].sort().reverse().filter(day => (categoryFilter === '全部' || notes[day]?.category === categoryFilter) && (!onlyBookmarks || notes[day]?.bookmarked) && `${day} ${notes[day]?.body ?? ''}`.toLowerCase().includes(query.toLowerCase()))
   const title = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date(`${date}T12:00:00`))
-  const displayMode = document ? 'preview' : desktop.compact ? 'edit' : mode
+  const displayMode = document ? 'preview' : desktop.compact ? (compactPreview ? 'preview' : 'edit') : mode
   const displayBody = document?.body ?? body
   return <div className={`app ${desktop.compact ? 'compact' : ''} ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
     <div className="desktop-controls">
       {!desktop.compact && <button className="sidebar-toggle" aria-label={sidebarHidden ? '展开左侧菜单' : '收起左侧菜单'} aria-expanded={!sidebarHidden} aria-controls="notes-sidebar" onClick={() => setSidebarHidden(!sidebarHidden)}>{sidebarHidden ? '☰ 展开菜单' : '☰ 收起菜单'}</button>}
       <button aria-pressed={desktop.pinned} onClick={() => void updateDesktop({ pinned: !desktop.pinned })}>{desktop.pinned ? '已置顶' : '置顶'}</button>
+      {desktop.compact && !task && !document && <button aria-pressed={compactPreview} onClick={() => setCompactPreview(!compactPreview)}>{compactPreview ? '编辑' : '预览'}</button>}
       <label>透明度 <input aria-label="窗口透明度" type="range" min="35" max="100" value={Math.round(desktop.opacity * 100)} onChange={e => void updateDesktop({ opacity: Number(e.target.value) / 100 })}/><span>{Math.round(desktop.opacity * 100)}%</span></label>
       <button title="仅便签模式生效：接近屏幕边缘自动贴边，移开鼠标收起" disabled={!desktop.compact} aria-pressed={desktop.compact && desktop.dock} onClick={() => void updateDesktop({ dock: !desktop.dock })}>{!desktop.compact ? '靠边收起（便签）' : desktop.dock ? '靠边收起：开' : '靠边收起'}</button>
       <button aria-pressed={desktop.compact} onClick={() => void updateDesktop({ compact: !desktop.compact })}>{desktop.compact ? '展开窗口' : '便签模式'}</button>
@@ -225,7 +229,7 @@ function App() {
       <nav>{days.map(day => <div className="archive-entry" key={day}><button disabled={!ready || closing || deleting} className={`day ${day === date ? 'selected' : ''}`} key={day} aria-haspopup="menu" aria-expanded={noteMenu === day} onClick={() => { setNoteMenu(null); void select(day) }} onContextMenu={event => { event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); setMenuPosition({ x: Math.max(4, Math.min(event.clientX || rect.left, window.innerWidth - 164)), y: Math.max(4, Math.min(event.clientY || rect.bottom, window.innerHeight - 120)) }); setNoteMenu(day) }}><strong><span className="day-title">{notes[day]?.bookmarked && <Bookmark size={12} fill="currentColor"/>}{day === localDate() ? '今天' : day.slice(5).replace('-', ' 月 ') + ' 日'}</span><span>{day.slice(0, 4)}</span></strong><span className="category-badge">{notes[day]?.category ?? '工作'}</span><small>{notes[day]?.body.replace(/[#*\[\]`>|-]/g, '').trim().slice(0, 38) || '还没有记录，写下第一笔…'}</small></button>{noteMenu === day && <div className="note-actions" style={{ left: menuPosition.x, top: menuPosition.y }} role="menu" aria-label="笔记操作"><button role="menuitem" disabled={deleting} onClick={() => { void select(day); setNoteMenu(null) }}>打开笔记</button><button role="menuitem" className="delete-note" disabled={deleting || !notes[day]} onClick={() => void deleteNote(day)}>{deleting ? '正在处理…' : '删除笔记'}</button><button role="menuitem" disabled={deleting} onClick={() => setNoteMenu(null)}>收起</button></div>}</div>)}{!days.length && <p className="empty-search">{onlyBookmarks ? '还没有书签，点击工具栏中的书签按钮添加' : '没有找到相关记录'}</p>}</nav>
       <div className="local"><ShieldCheck size={16}/><span>本地加密存储<small>密钥由当前系统账号保护</small></span></div>
     </aside>
-    {task ? <TaskWorkspace key={task.id} task={task} flushRef={taskFlush} onBack={() => void backToNotes()}/> : <main>
+    {task ? <TaskWorkspace key={task.id} task={task} compact={desktop.compact} flushRef={taskFlush} onBack={() => void backToNotes()}/> : <main>
       <header><div className="eyebrow">{document ? 'MARKDOWN DOCUMENT' : `DAILY NOTES / ${date.slice(0, 4)}`}</div><div className="heading"><h1>{document?.name ?? title}</h1>{!document && <NoteCalendar date={date} notes={notes} disabled={!ready || closing} onSelect={select}/>}</div><p className="subtitle">{document ? '只读预览 · 支持表格、任务列表与数学公式' : '留一点空间，记录今天的想法与待办。'}</p></header>
       <div className="toolbar">{document ? <button className="return-notes" onClick={() => setDocument(null)}><ArrowLeft size={14}/>返回每日笔记</button> : <div className="modes">{(['edit', 'split', 'preview'] as const).map(value => <button className={mode === value ? 'active' : ''} key={value} onClick={() => setMode(value)}>{value === 'split' && <Columns2 size={14}/>}{{ edit: '编辑', split: '双栏', preview: '预览' }[value]}</button>)}</div>}<span className="save-state"><Check size={14}/>{document ? '本地文件预览' : closing ? '保存后关闭…' : status}</span></div>
       {!document && <div className="format-toolbar" role="toolbar" aria-label="文本格式">
@@ -238,7 +242,7 @@ function App() {
       {!document && <label className="note-category">笔记分类<select aria-label="笔记分类" value={notes[date]?.category ?? '工作'} disabled={!ready || closing} onChange={event => change(body, notes[date]?.bookmarked ?? false, event.target.value as Category)}>{(['生活', '学习', '工作'] as const).map(category => <option key={category}>{category}</option>)}</select><span>分类修改后自动保存</span></label>}
       {error && <div className="error" role="alert">{error} {ready && <button onClick={save}>重试保存</button>}</div>}
       <section className={`workspace ${displayMode}`}>
-        {displayMode !== 'preview' && <div className="editor-pane"><div className="pane-label">MARKDOWN <span>选中文字设置格式</span></div><CodeMirror value={body} extensions={extensions} onCreateEditor={view => { editor.current = view; const kind = pendingFormat.current; if (kind) { pendingFormat.current = null; queueMicrotask(() => applyFormat(kind, view)) } }} onUpdate={update => { if (update.docChanged || update.selectionSet) { const head = update.state.selection.main.head; const line = update.state.doc.lineAt(head); const column = Array.from(line.text.slice(0, head - line.from)).length + 1; setPosition(previous => previous.line === line.number && previous.column === column ? previous : { line: line.number, column }) } }} onChange={text => change(text)} editable={ready && !closing && !deleting} height="100%" basicSetup={{ lineNumbers: true, foldGutter: false, highlightActiveLine: true, highlightActiveLineGutter: true, drawSelection: true }} placeholder="从这里开始记录今天…"/>{!body && ready && <button className="template" disabled={closing} onClick={() => change(starter)}>插入每日模板</button>}</div>}
+        {displayMode !== 'preview' && <div className="editor-pane"><div className="pane-label">MARKDOWN <span>选中文字设置格式</span></div><CodeMirror value={body} extensions={extensions} onCreateEditor={view => { editor.current = view; const kind = pendingFormat.current; if (kind) { pendingFormat.current = null; queueMicrotask(() => applyFormat(kind, view)) } }} onUpdate={update => { if (update.docChanged || update.selectionSet) { const head = update.state.selection.main.head; const line = update.state.doc.lineAt(head); const column = Array.from(line.text.slice(0, head - line.from)).length + 1; setPosition(previous => previous.line === line.number && previous.column === column ? previous : { line: line.number, column }) } }} onChange={text => change(text)} editable={ready && !closing && !deleting} height="100%" basicSetup={editorSetup} placeholder="从这里开始记录今天…"/>{!body && ready && <button className="template" disabled={closing} onClick={() => change(starter)}>插入每日模板</button>}</div>}
         {displayMode !== 'edit' && <div className="preview-pane"><div className="pane-label">{document ? '文档预览' : '阅读预览'}</div><article className="markdown">{displayBody ? <MarkdownView body={displayBody}/> : <div className="blank"><FilePenLine size={32}/><h2>{document ? '文档内容为空' : '今天，值得被记住'}</h2><p>{document ? '可以打开其他 Markdown 文件。' : '在左侧写下文字，内容会在这里呈现。'}</p><small>支持 Markdown 标题、表格、待办与数学公式</small></div>}</article></div>}
 
       </section>

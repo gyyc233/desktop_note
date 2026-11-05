@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react'
-import CodeMirror from '@uiw/react-codemirror'
+import CodeMirror from './StableCodeMirror'
 import { EditorView } from '@codemirror/view'
 import { markdown } from '@codemirror/lang-markdown'
 import { MarkdownView } from './MarkdownView'
 import type { TaskDocument } from '../../shared/notes'
 
-export function TaskWorkspace({ task, flushRef, onBack }: { task: TaskDocument; flushRef: MutableRefObject<null | (() => Promise<void>)>; onBack: () => void }) {
+const taskExtensions = [markdown(), EditorView.lineWrapping]
+const editorSetup = { lineNumbers: true, highlightActiveLine: true }
+
+export function TaskWorkspace({ task, compact, flushRef, onBack }: { task: TaskDocument; compact: boolean; flushRef: MutableRefObject<null | (() => Promise<void>)>; onBack: () => void }) {
   const [body, setBody] = useState(task.body)
   const [status, setStatus] = useState('已打开任务')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState(true)
+  const [compactPreview, setCompactPreview] = useState(false)
+  const showEditor = !compact || !compactPreview
+  const showPreview = compact ? compactPreview : preview
   const text = useRef(task.body)
   const dirty = useRef(false)
   const view = useRef<EditorView | null>(null)
@@ -18,6 +24,7 @@ export function TaskWorkspace({ task, flushRef, onBack }: { task: TaskDocument; 
   const uploads = useRef<Promise<void>>(Promise.resolve())
   const saves = useRef<Promise<void>>(Promise.resolve())
   const input = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (!showEditor) view.current = null }, [showEditor])
   function change(value: string) {
     text.current = value; dirty.current = true; setBody(value); setStatus('等待保存…')
     clearTimeout(timer.current)
@@ -72,13 +79,13 @@ export function TaskWorkspace({ task, flushRef, onBack }: { task: TaskDocument; 
     if (files.length) { event.preventDefault(); event.stopPropagation(); attach(files) }
   }}>
     <header><div className="eyebrow">TASK / 本地任务资料</div><h1>{task.name}</h1><p className="subtitle task-path" title={task.root}>{task.root}</p><button className="return-notes" onClick={() => { void window.notes.revealTask(task.id, '.').catch(showError) }}>打开任务文件夹</button></header>
-    <div className="toolbar"><button className="return-notes" disabled={busy} onClick={onBack}>返回每日笔记</button><button className="return-notes" disabled={busy} onClick={() => input.current?.click()}>添加材料</button><button className="return-notes" onClick={() => setPreview(!preview)}>{preview ? '仅编辑' : '显示预览'}</button><span className="save-state">{busy ? '正在归档附件…' : status}</span></div>
+    <div className="toolbar"><button className="return-notes" disabled={busy} onClick={onBack}>返回每日笔记</button><button className="return-notes" disabled={busy} onClick={() => input.current?.click()}>添加材料</button><button className="return-notes" onClick={() => compact ? setCompactPreview(!compactPreview) : setPreview(!preview)}>{compact ? (compactPreview ? '编辑' : '预览') : preview ? '仅编辑' : '显示预览'}</button><span className="save-state">{busy ? '正在归档附件…' : status}</span></div>
     <input ref={input} type="file" multiple hidden onChange={event => { attach(Array.from(event.target.files ?? [])); event.target.value = '' }}/>
     {error && <div className="error" role="alert">{error}<button onClick={() => { uploads.current = uploads.current.catch(() => {}); void flush().catch(showError) }}>重试保存</button></div>}
     <div className="task-hint">可粘贴图片、文件或拖入材料 · 图片 → img，文档 → docs，音视频 → audio / video，其他 → files</div>
-    <section className={`workspace ${preview ? 'split' : 'edit'}`}>
-      <div className="editor-pane"><CodeMirror value={body} extensions={[markdown(), EditorView.lineWrapping]} onCreateEditor={editor => { view.current = editor }} onChange={change} editable={!busy} height="100%" basicSetup={{ lineNumbers: true, highlightActiveLine: true }} /></div>
-      {preview && <div className="preview-pane"><article className="markdown"><MarkdownView body={body} taskId={task.id}/></article></div>}
+    <section className={`workspace ${showEditor && showPreview ? 'split' : showPreview ? 'preview' : 'edit'}`}>
+      {showEditor && <div className="editor-pane"><CodeMirror value={body} extensions={taskExtensions} onCreateEditor={editor => { view.current = editor }} onChange={change} editable={!busy} height="100%" basicSetup={editorSetup} /></div>}
+      {showPreview && <div className="preview-pane"><article className="markdown"><MarkdownView body={body} taskId={task.id}/></article></div>}
     </section>
     <footer><span>{body.length} 字符 · task.md</span><span>任务文件以普通文件保存在所选目录</span></footer>
   </main>

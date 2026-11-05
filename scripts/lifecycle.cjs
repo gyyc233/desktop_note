@@ -16,7 +16,38 @@ let savedAfterClose = false
 app.whenReady().then(async () => {
   try {
     const window = BrowserWindow.getAllWindows()[0]
+    if (process.env.NOTE_TEST_SECONDARY === '1') {
+      const primary = screen.getPrimaryDisplay().id
+      const secondary = screen.getAllDisplays().find(display => display.id !== primary)
+      if (!secondary) throw new Error('No secondary display; skip UI reproduction')
+      window.setBounds({ x: secondary.workArea.x + 40, y: secondary.workArea.y + 40, width: 1100, height: 760 })
+      await delay(700)
+      console.log('Test window moved to secondary display', secondary.id)
+    }
     await waitFor(() => window.webContents.executeJavaScript(`!!document.querySelector('.template') && !document.querySelector('.today').disabled`))
+    await window.webContents.executeJavaScript(`document.querySelector('.cm-content').focus()`)
+    await window.webContents.insertText('alpha bravo charlie\n' + 'second line of long document\n'.repeat(100) + 'last line')
+    await delay(500)
+    await window.webContents.executeJavaScript(`document.querySelector('.cm-scroller').scrollTop=0; document.querySelector('.editor-pane').scrollTop=0`)
+    await delay(200)
+    const point = await window.webContents.executeJavaScript(`(() => { const node=document.querySelector('.cm-line').firstChild; const range=document.createRange(); range.setStart(node,7); range.setEnd(node,8); const r=range.getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)} })()`)
+    window.webContents.sendInputEvent({type:'mouseMove',...point})
+    window.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...point})
+    window.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...point})
+    await delay(80)
+    window.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:2,...point})
+    window.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:2,...point})
+    await delay(300)
+    assert.equal(await window.webContents.executeJavaScript(`getSelection().toString()`), 'bravo', 'Double click must retain the selected word')
+    assert.equal(await window.webContents.executeJavaScript(`(() => { const v=document.querySelector('.cm-content').cmTile.root.view; const s=v.state.selection.main; return v.state.sliceDoc(s.from,s.to) })()`), 'bravo', 'Editor state must agree with the native selection')
+    const selectionRect = await window.webContents.executeJavaScript(`(() => { const r=document.querySelector('.cm-selectionBackground').getBoundingClientRect(); return {x:Math.round(r.x+r.width/2),y:Math.ceil(r.y)+1,width:1,height:1} })()`)
+    const selectedPixel = (await window.webContents.capturePage(selectionRect)).toBitmap()
+    await window.webContents.executeJavaScript(`(() => { const v=document.querySelector('.cm-content').cmTile.root.view; v.dispatch({selection:{anchor:0}}) })()`)
+    await delay(100)
+    const plainPixel = (await window.webContents.capturePage(selectionRect)).toBitmap()
+    assert.ok(Math.abs(selectedPixel[0]-plainPixel[0])+Math.abs(selectedPixel[1]-plainPixel[1])+Math.abs(selectedPixel[2]-plainPixel[2]) > 30, 'Selected text must have a visibly distinct background, including on the active line')
+    console.log('PASS: selection highlight is visible above the active-line background')
+    console.log('PASS: double-click word selection survives cursor updates')
     await window.webContents.executeJavaScript(`const select=document.querySelector('select[aria-label="笔记分类"]'); select.value='生活'; select.dispatchEvent(new Event('change',{bubbles:true}))`)
     await waitFor(() => window.webContents.executeJavaScript(`window.notes.list().then(notes => notes.some(n => n.category==='生活'))`))
     await window.webContents.executeJavaScript(`Array.from(document.querySelectorAll('.category-filters button')).find(b=>b.textContent.startsWith('学习')).click()`)

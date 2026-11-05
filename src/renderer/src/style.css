@@ -20,3 +20,5 @@
 /* Use one consistent palette across all context-menu actions. */
 .note-actions button,.note-actions .delete-note{color:#52694a;background:transparent;border:0}.note-actions button:hover:not(:disabled),.note-actions .delete-note:hover:not(:disabled){color:#355e49;background:#eaf0e3}
 .compact .desktop-controls{flex-wrap:wrap;height:auto;min-height:42px}.compact.app{padding-top:70px}
+
+.compact .task-workspace .preview-pane{display:block}.compact .markdown{font-size:13px}.compact .blank{padding:24px 0}.compact .task-workspace header,.compact .task-hint{display:none}
