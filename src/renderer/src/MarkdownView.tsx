@@ -1,10 +1,20 @@
+import { sourceLines } from './sourceLines'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
-import { useEffect, useState } from 'react'
+import { Children, isValidElement, useEffect, useState, type ReactNode } from 'react'
+import { MermaidDiagram } from './MermaidDiagram'
+
+function MarkdownPre({ children, ...props }: { children?: ReactNode; 'data-source-line'?: number }) {
+  const child = Children.toArray(children)[0]
+  if (isValidElement<{ className?: string; children?: ReactNode }>(child) && /\blanguage-mermaid\b/i.test(child.props.className ?? '')) {
+    return <div data-source-line={props['data-source-line'] as number | undefined}><MermaidDiagram source={String(child.props.children ?? '').replace(/\n$/, '')}/></div>
+  }
+  return <pre data-source-line={props['data-source-line'] as number | undefined}>{children}</pre>
+}
 
 function TaskImage({ id, src, alt }: { id: string; src: string; alt: string }) {
   const [url, setUrl] = useState('')
@@ -30,5 +40,5 @@ const schema = {
   }
 }
 export function MarkdownView({ body, taskId }: { body: string; taskId?: string }) {
-  return <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeSanitize, schema], [rehypeKatex, { trust: false, maxExpand: 1000, maxSize: 20 }]]} components={{ img: ({ src, alt }) => taskId && typeof src === 'string' ? <TaskImage id={taskId} src={src} alt={alt ?? ''}/> : <span className="image-placeholder">[图片：请在任务中导入]</span>, a: ({ children, href }) => taskId && href && /^(img|docs|audio|video|files)\//.test(href) ? <TaskLink id={taskId} href={href}>{children}</TaskLink> : <span className="link-text">{children}</span> }}>{body}</ReactMarkdown>
+  return <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeSanitize, schema], [rehypeKatex, { trust: false, maxExpand: 1000, maxSize: 20 }], sourceLines]} components={{ pre: MarkdownPre, img: ({ src, alt }) => taskId && typeof src === 'string' ? <TaskImage id={taskId} src={src} alt={alt ?? ''}/> : <span className="image-placeholder">[图片：请在任务中导入]</span>, a: ({ children, href }) => taskId && href && /^(img|docs|audio|video|files)\//.test(href) ? <TaskLink id={taskId} href={href}>{children}</TaskLink> : <span className="link-text">{children}</span> }}>{body}</ReactMarkdown>
 }

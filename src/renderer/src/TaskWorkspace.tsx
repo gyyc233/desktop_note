@@ -1,3 +1,4 @@
+import { useScrollSync } from './useScrollSync'
 import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import CodeMirror from './StableCodeMirror'
 import { EditorView } from '@codemirror/view'
@@ -17,6 +18,7 @@ export function TaskWorkspace({ task, compact, flushRef, onBack }: { task: TaskD
   const [compactPreview, setCompactPreview] = useState(false)
   const showEditor = !compact || !compactPreview
   const showPreview = compact ? compactPreview : preview
+  const scrollSync = useScrollSync(body, showEditor && showPreview)
   const text = useRef(task.body)
   const dirty = useRef(false)
   const view = useRef<EditorView | null>(null)
@@ -83,7 +85,7 @@ export function TaskWorkspace({ task, compact, flushRef, onBack }: { task: TaskD
     <input ref={input} type="file" multiple hidden onChange={event => { attach(Array.from(event.target.files ?? [])); event.target.value = '' }}/>
     {error && <div className="error" role="alert">{error}<button onClick={() => { uploads.current = uploads.current.catch(() => {}); void flush().catch(showError) }}>重试保存</button></div>}
     <div className="task-hint">可粘贴图片、文件或拖入材料 · 图片 → img，文档 → docs，音视频 → audio / video，其他 → files</div>
-    <section className={`workspace ${showEditor && showPreview ? 'split' : showPreview ? 'preview' : 'edit'}`}>
+    <section ref={scrollSync} className={`workspace ${showEditor && showPreview ? 'split' : showPreview ? 'preview' : 'edit'}`}>
       {showEditor && <div className="editor-pane"><CodeMirror value={body} extensions={taskExtensions} onCreateEditor={editor => { view.current = editor }} onChange={change} editable={!busy} height="100%" basicSetup={editorSetup} /></div>}
       {showPreview && <div className="preview-pane"><article className="markdown"><MarkdownView body={body} taskId={task.id}/></article></div>}
     </section>

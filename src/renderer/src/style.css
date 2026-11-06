@@ -22,3 +22,6 @@
 .compact .desktop-controls{flex-wrap:wrap;height:auto;min-height:42px}.compact.app{padding-top:70px}
 
 .compact .task-workspace .preview-pane{display:block}.compact .markdown{font-size:13px}.compact .blank{padding:24px 0}.compact .task-workspace header,.compact .task-hint{display:none}
+
+.mermaid-diagram{margin:12px 0;padding:12px;border:1px solid #dbe2d3;border-radius:6px;overflow:auto;background:#fff}.mermaid-diagram summary{cursor:pointer;font-size:11px;color:#718267;margin-top:8px}.mermaid-diagram [role=alert]{color:#8b4c32;font-size:12px}.mermaid-diagram pre{white-space:pre-wrap}
+.diagram-controls{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:8px;font-size:11px;color:#718267}.diagram-controls label{display:flex;align-items:center;gap:6px}.diagram-controls input{width:85px;accent-color:#355e49}.diagram-controls span{min-width:32px}.diagram-controls button{border:1px solid #dbe2d3;border-radius:4px;background:transparent;color:inherit;font-size:11px;padding:2px 6px}.diagram-viewport{overflow:auto;max-height:480px}.diagram-viewport>img{display:block;max-width:none;height:auto;margin:0 auto}

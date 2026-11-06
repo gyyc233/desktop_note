@@ -1,3 +1,4 @@
+import { useScrollSync } from './useScrollSync'
 import { TaskWorkspace } from './TaskWorkspace'
 import brandIcon from '../../../resources/icon.png'
 import { NoteCalendar } from './NoteCalendar'
@@ -206,6 +207,7 @@ function App() {
   const title = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date(`${date}T12:00:00`))
   const displayMode = document ? 'preview' : desktop.compact ? (compactPreview ? 'preview' : 'edit') : mode
   const displayBody = document?.body ?? body
+  const scrollSync = useScrollSync(displayBody, !task && displayMode === 'split')
   return <div className={`app ${desktop.compact ? 'compact' : ''} ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
     <div className="desktop-controls">
       {!desktop.compact && <button className="sidebar-toggle" aria-label={sidebarHidden ? '展开左侧菜单' : '收起左侧菜单'} aria-expanded={!sidebarHidden} aria-controls="notes-sidebar" onClick={() => setSidebarHidden(!sidebarHidden)}>{sidebarHidden ? '☰ 展开菜单' : '☰ 收起菜单'}</button>}
@@ -241,7 +243,7 @@ function App() {
       </div>}
       {!document && <label className="note-category">笔记分类<select aria-label="笔记分类" value={notes[date]?.category ?? '工作'} disabled={!ready || closing} onChange={event => change(body, notes[date]?.bookmarked ?? false, event.target.value as Category)}>{(['生活', '学习', '工作'] as const).map(category => <option key={category}>{category}</option>)}</select><span>分类修改后自动保存</span></label>}
       {error && <div className="error" role="alert">{error} {ready && <button onClick={save}>重试保存</button>}</div>}
-      <section className={`workspace ${displayMode}`}>
+      <section ref={scrollSync} className={`workspace ${displayMode}`}>
         {displayMode !== 'preview' && <div className="editor-pane"><div className="pane-label">MARKDOWN <span>选中文字设置格式</span></div><CodeMirror value={body} extensions={extensions} onCreateEditor={view => { editor.current = view; const kind = pendingFormat.current; if (kind) { pendingFormat.current = null; queueMicrotask(() => applyFormat(kind, view)) } }} onUpdate={update => { if (update.docChanged || update.selectionSet) { const head = update.state.selection.main.head; const line = update.state.doc.lineAt(head); const column = Array.from(line.text.slice(0, head - line.from)).length + 1; setPosition(previous => previous.line === line.number && previous.column === column ? previous : { line: line.number, column }) } }} onChange={text => change(text)} editable={ready && !closing && !deleting} height="100%" basicSetup={editorSetup} placeholder="从这里开始记录今天…"/>{!body && ready && <button className="template" disabled={closing} onClick={() => change(starter)}>插入每日模板</button>}</div>}
         {displayMode !== 'edit' && <div className="preview-pane"><div className="pane-label">{document ? '文档预览' : '阅读预览'}</div><article className="markdown">{displayBody ? <MarkdownView body={displayBody}/> : <div className="blank"><FilePenLine size={32}/><h2>{document ? '文档内容为空' : '今天，值得被记住'}</h2><p>{document ? '可以打开其他 Markdown 文件。' : '在左侧写下文字，内容会在这里呈现。'}</p><small>支持 Markdown 标题、表格、待办与数学公式</small></div>}</article></div>}
 
