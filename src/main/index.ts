@@ -1,6 +1,6 @@
 import { appIconData } from './icons'
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, nativeImage, shell } from 'electron'
-import { join, dirname } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { openStore } from './store'
@@ -9,9 +9,23 @@ import { readMarkdownFile } from './markdown-file'
 import { windowControls } from './window-controls'
 import { installMenu } from './menu'
 import { taskStore } from './tasks'
+import { installBackup } from './backup-ipc'
 
 let store: ReturnType<typeof openStore>
 let desktopTray: ReturnType<typeof attachTray> | undefined
+const portableDirectory = app.isPackaged && process.platform === 'win32' && process.env.PORTABLE_EXECUTABLE_DIR
+const portableRoot = portableDirectory && isAbsolute(portableDirectory) ? portableDirectory : undefined
+if (process.platform === 'win32') app.setAppUserModelId('io.github.gyyc233.desktopnote')
+if (portableRoot) {
+  try {
+    const dataDirectory = join(portableRoot, 'data')
+    mkdirSync(dataDirectory, { recursive: true })
+    app.setPath('userData', dataDirectory)
+  } catch (error) {
+    dialog.showErrorBox('无法打开便携版数据目录', String(error))
+    app.exit(1)
+  }
+}
 if (!app.requestSingleInstanceLock()) app.exit(0)
 app.on('second-instance', () => {
   desktopTray?.show()
@@ -109,7 +123,9 @@ void app.whenReady().then(() => {
   }
   createWindow()
   const tasks = taskStore()
-  const taskRoot = join(app.isPackaged ? (process.env.PORTABLE_EXECUTABLE_DIR || dirname(process.execPath)) : app.getAppPath(), 'tasks')
+  const taskBase = portableRoot ?? (app.isPackaged ? join(app.getPath('documents'), '每日记事') : app.getAppPath())
+  const taskRoot = join(taskBase, 'tasks')
+  installBackup(store, taskRoot)
   ipcMain.handle('task:create', async (event, name) => {
     const owner = BrowserWindow.fromWebContents(event.sender)
     if (!owner) throw new Error('窗口不可用')

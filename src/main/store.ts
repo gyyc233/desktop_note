@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3-multiple-ciphers'
 import type { Note, Category } from '../shared/notes'
+import { validateNotes } from './note-validation.ts'
 
 export function openStore(path: string, key: string) {
   if (!/^[a-f0-9]{64}$/.test(key)) throw new Error('Invalid database key')
@@ -25,6 +26,19 @@ export function openStore(path: string, key: string) {
     }
   } catch (error) { db.close(); throw error }
   return {
+    importNotes(value: unknown, overwrite: boolean) {
+      const notes = validateNotes(value)
+      return db.transaction(() => {
+        let imported = 0, skipped = 0
+        const exists = db.prepare('SELECT 1 FROM notes WHERE date = ?')
+        const insert = db.prepare('INSERT INTO notes(date,body,updatedAt,bookmarked,category) VALUES (@date,@body,@updatedAt,@bookmarked,@category) ON CONFLICT(date) DO UPDATE SET body=excluded.body,updatedAt=excluded.updatedAt,bookmarked=excluded.bookmarked,category=excluded.category')
+        for (const note of notes) {
+          if (!overwrite && exists.get(note.date)) { skipped++; continue }
+          insert.run({ ...note, bookmarked: Number(note.bookmarked) }); imported++
+        }
+        return { imported, skipped }
+      })()
+    },
     remove(date: string) {
       if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Invalid date')
       return db.prepare('DELETE FROM notes WHERE date = ?').run(date).changes > 0

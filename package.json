@@ -11,7 +11,7 @@
     "preview": "electron-vite preview",
     "postinstall": "node node_modules/electron/install.js && electron-rebuild -f -w better-sqlite3-multiple-ciphers",
     "rebuild": "electron-rebuild -f -w better-sqlite3-multiple-ciphers",
-    "test": "npm run build && node scripts/tasks.cjs && node scripts/run-smoke.cjs && node scripts/run-lifecycle.cjs && node scripts/run-lifecycle.cjs tasks",
+    "test": "npm run build && node scripts/tasks.cjs && node scripts/run-smoke.cjs && node scripts/run-lifecycle.cjs && node scripts/run-lifecycle.cjs tasks && node scripts/run-backup-tests.cjs",
     "icons": "node scripts/generate-icons.cjs",
     "package:win": "npm run build && electron-builder --win --publish never",
     "package:dir": "npm run build && electron-builder --win --dir --publish never"
@@ -21,6 +21,7 @@
     "@codemirror/view": "^6.43.15",
     "@uiw/react-codemirror": "^4.25.12",
     "better-sqlite3-multiple-ciphers": "^13.0.3",
+    "fflate": "^0.8.3",
     "katex": "^0.19.1",
     "lucide-react": "^1.65.0",
     "mermaid": "^12.3.0",

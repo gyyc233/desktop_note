@@ -1,3 +1,4 @@
+import { BackupPanel } from './BackupPanel'
 import { useScrollSync } from './useScrollSync'
 import { TaskWorkspace } from './TaskWorkspace'
 import brandIcon from '../../../resources/icon.png'
@@ -34,6 +35,8 @@ const extensions = [
 ]
 const editorSetup = { lineNumbers: true, foldGutter: false, highlightActiveLine: true, highlightActiveLineGutter: true, drawSelection: true }
 function App() {
+  const [backupOpen, setBackupOpen] = useState(false)
+  useEffect(() => window.notes.onBackup?.(() => setBackupOpen(true)), [])
   const [notes, setNotes] = useState<Record<string, Note>>({})
   const [date, setDate] = useState(localDate)
   const [body, setBody] = useState('')
@@ -209,8 +212,10 @@ function App() {
   const displayBody = document?.body ?? body
   const scrollSync = useScrollSync(displayBody, !task && displayMode === 'split')
   return <div className={`app ${desktop.compact ? 'compact' : ''} ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
+    {backupOpen && <BackupPanel before={flush} after={async () => { const items = await window.notes.list(); const indexed = Object.fromEntries(items.map(note => [note.date, note])); dirty.current.clear(); setNotes(indexed); setBody(indexed[date]?.body ?? ''); setStatus('已恢复备份'); }} onClose={() => setBackupOpen(false)}/>}
     <div className="desktop-controls">
-      {!desktop.compact && <button className="sidebar-toggle" aria-label={sidebarHidden ? '展开左侧菜单' : '收起左侧菜单'} aria-expanded={!sidebarHidden} aria-controls="notes-sidebar" onClick={() => setSidebarHidden(!sidebarHidden)}>{sidebarHidden ? '☰ 展开菜单' : '☰ 收起菜单'}</button>}
+
+      {!desktop.compact && sidebarHidden && <button className="sidebar-toggle sidebar-expand" title="展开左侧菜单" aria-label="展开左侧菜单" aria-expanded={false} aria-controls="notes-sidebar" onClick={() => setSidebarHidden(false)}>☰</button>}
       <button aria-pressed={desktop.pinned} onClick={() => void updateDesktop({ pinned: !desktop.pinned })}>{desktop.pinned ? '已置顶' : '置顶'}</button>
       {desktop.compact && !task && !document && <button aria-pressed={compactPreview} onClick={() => setCompactPreview(!compactPreview)}>{compactPreview ? '编辑' : '预览'}</button>}
       <label>透明度 <input aria-label="窗口透明度" type="range" min="35" max="100" value={Math.round(desktop.opacity * 100)} onChange={e => void updateDesktop({ opacity: Number(e.target.value) / 100 })}/><span>{Math.round(desktop.opacity * 100)}%</span></label>
@@ -218,6 +223,7 @@ function App() {
       <button aria-pressed={desktop.compact} onClick={() => void updateDesktop({ compact: !desktop.compact })}>{desktop.compact ? '展开窗口' : '便签模式'}</button>
     </div>
     <aside id="notes-sidebar">
+      <button className="sidebar-collapse" title="收起左侧菜单" aria-label="收起左侧菜单" aria-expanded={true} aria-controls="notes-sidebar" onClick={() => setSidebarHidden(true)}>‹</button>
       <div className="brand"><img className="brand-image" src={brandIcon} alt="每日记事图标"/><div>每日记事</div></div>
       <button className="today" disabled={!ready || closing} onClick={() => select(localDate())}><CalendarDays size={17}/> 回到今天 <span>↗</span></button>
       <button className="open-document" disabled={!ready || closing || opening} onClick={() => void openDocument()}><FolderOpen size={16}/>{opening ? '正在打开…' : '打开 Markdown'}<kbd>Ctrl+O</kbd></button>

@@ -5,6 +5,7 @@ export function installMenu(window: BrowserWindow) {
   const template: MenuItemConstructorOptions[] = [
     { label: '文件', submenu: [
       { label: '打开 Markdown 文档…', accelerator: 'CmdOrCtrl+O', click: () => window.webContents.send('markdown:request-open') },
+      { label: '备份与恢复…', click: () => window.webContents.send('backup:request-open') },
       { type: 'separator' },
       { label: '收起到托盘', click: () => window.close() },
       { label: '退出程序', click: () => app.quit() }

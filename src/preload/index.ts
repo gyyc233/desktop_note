@@ -2,6 +2,13 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { NotesAPI } from '../shared/notes'
 
 const api: NotesAPI = {
+  exportBackup: password => ipcRenderer.invoke('backup:export', password),
+  importBackup: (password, overwrite) => ipcRenderer.invoke('backup:import', password, overwrite),
+  onBackup(callback) {
+    const handler = () => callback()
+    ipcRenderer.on('backup:request-open', handler)
+    return () => ipcRenderer.removeListener('backup:request-open', handler)
+  },
   deleteNote: date => ipcRenderer.invoke('notes:delete', date),
   createTask: name => ipcRenderer.invoke('task:create', name),
   openTask: () => ipcRenderer.invoke('task:open'),

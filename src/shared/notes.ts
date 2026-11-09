@@ -1,6 +1,9 @@
 export type Category = '生活' | '学习' | '工作'
 export interface Note { date: string; body: string; updatedAt: string; bookmarked: boolean; category: Category }
 export interface NotesAPI {
+  exportBackup(password: string): Promise<BackupResult | null>
+  importBackup(password: string, overwrite: boolean): Promise<BackupResult | null>
+  onBackup(callback: () => void): () => void
   deleteNote(date: string): Promise<boolean>
   createTask(name: string): Promise<TaskDocument | null>
   openTask(): Promise<TaskDocument | null>
@@ -21,3 +24,4 @@ export interface NotesAPI {
 }
 export interface WindowSettings { compact: boolean; pinned: boolean; opacity: number; dock: boolean }
 export interface TaskDocument { id: string; name: string; root: string; body: string }
+export interface BackupResult { path: string; notes: number; tasks: number; skipped: number }
